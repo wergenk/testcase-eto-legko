@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.core.dto.campaign_creation import (
     CampaignCreationAttempt,
@@ -18,6 +18,11 @@ from .base import BaseRepository
 
 
 class CampaignCreationSQLAlchemyRepository(BaseRepository, CampaignCreationRepository):
+    async def lock(self, request_id: UUID) -> None:
+        resource = f"adrobot:creation:{request_id}"
+        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
+        await self.session.execute(stmt)
+
     async def _get_orm(self, request_id: UUID) -> CampaignCreationAttemptORM | None:
         stmt = (
             select(CampaignCreationAttemptORM)

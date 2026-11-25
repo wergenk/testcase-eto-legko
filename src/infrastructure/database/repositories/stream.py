@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.core.dto import CreateStreamDTO, Stream
 from src.core.interfaces.repositories import StreamRepository
@@ -8,6 +8,12 @@ from .base import BaseRepository
 
 
 class StreamSQLAlchemyRepository(BaseRepository, StreamRepository):
+    async def lock_campaign(self, keitaro_campaign_id: int) -> None:
+        # Блокировка работает и до появления первой локальной строки потока.
+        resource = f"adrobot:campaign:{keitaro_campaign_id}"
+        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
+        await self.session.execute(stmt)
+
     async def _get_orm(self, stream_id: int) -> StreamORM | None:
         stmt = (
             select(StreamORM)

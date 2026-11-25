@@ -8,6 +8,11 @@ class StreamRepository(ABC):
     """Локальные потоки. Методы не коммитят транзакцию самостоятельно."""
 
     @abstractmethod
+    async def lock_campaign(self, keitaro_campaign_id: int) -> None:
+        """Сериализовать Fetch/Push до commit/rollback, даже без локальных потоков."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def create(self, data: CreateStreamDTO) -> Stream:
         """Создать поток с уникальным keitaro_stream_id."""
         raise NotImplementedError

@@ -57,7 +57,7 @@ class CampaignSyncService:
                 result = await self.fetch_campaign(keitaro_campaign_id, uow=transaction)
                 await transaction.commit()
                 return result
-        await uow.lock_campaign(keitaro_campaign_id)
+        await uow.streams.lock_campaign(keitaro_campaign_id)
         # Сначала проверяем всю кампанию, включая пропавшие из API потоки.
         for stream in await uow.streams.list_by_campaign(keitaro_campaign_id):
             draft = await uow.drafts.get_by_stream(stream.id)
@@ -94,7 +94,7 @@ class CampaignSyncService:
             stream = await uow.streams.get(draft.stream_id)
             if stream is None:
                 raise StreamPublicationError("Не найден локальный поток черновика")
-            await uow.lock_campaign(stream.keitaro_campaign_id)
+            await uow.streams.lock_campaign(stream.keitaro_campaign_id)
             draft = await uow.drafts.get_for_update(draft_id)
             if draft is None:
                 raise StreamDraftNotFoundError(f"Черновик {draft_id} не найден")

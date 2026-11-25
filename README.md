@@ -219,7 +219,11 @@ PostgreSQL и Keitaro не имеют общей транзакции. При с
 При импорте модулей настройки не читаются и соединения не создаются.
 
 `StreamUnitOfWorkSQLAlchemy(manager)` реализует ABC `StreamUnitOfWork`
-и предоставляет `streams`, `snapshots`, `drafts` в одной сессии:
+и предоставляет `streams`, `snapshots`, `drafts`, `creations` в одной сессии.
+Блокировки выполняют репозитории: `uow.creations.lock(request_id)` защищает
+этап создания, `uow.streams.lock_campaign(campaign_id)` сериализует Fetch/Push.
+Они действуют до commit/rollback общей транзакции; UOW управляет её жизненным
+циклом и предоставляет репозитории:
 
 ```python
 async with StreamUnitOfWorkSQLAlchemy(manager) as uow:

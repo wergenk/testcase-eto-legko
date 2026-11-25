@@ -39,7 +39,7 @@ class CampaignCreationService:
     ) -> CampaignCreationResultDTO:
         while True:
             async with self._uow_factory() as uow:
-                await uow.lock_creation(command.request_id)
+                await uow.creations.lock(command.request_id)
                 attempt = await uow.creations.get(command.request_id)
                 if attempt is None:
                     await uow.creations.create(command, self._defaults)
@@ -57,7 +57,8 @@ class CampaignCreationService:
 
     async def get_attempt(self, request_id: UUID) -> CampaignCreationAttempt | None:
         async with self._uow_factory() as uow:
-            return await uow.creations.get(request_id)
+            res = await uow.creations.get(request_id)
+        return res
 
     async def _advance(
         self, attempt: CampaignCreationAttempt, uow: StreamUnitOfWork

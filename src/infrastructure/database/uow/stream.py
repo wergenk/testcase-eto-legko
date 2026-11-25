@@ -1,8 +1,6 @@
 from types import TracebackType
 from typing import Self
-from uuid import UUID
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.interfaces.repositories import (
@@ -103,17 +101,6 @@ class StreamUnitOfWorkSQLAlchemy(StreamUnitOfWork):
 
     async def rollback(self) -> None:
         await self._require_session().rollback()
-
-    async def lock_campaign(self, keitaro_campaign_id: int) -> None:
-        # Transaction advisory lock работает и до появления первой строки потока.
-        resource = f"adrobot:campaign:{keitaro_campaign_id}"
-        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
-        await self._require_session().execute(stmt)
-
-    async def lock_creation(self, request_id: UUID) -> None:
-        resource = f"adrobot:creation:{request_id}"
-        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
-        await self._require_session().execute(stmt)
 
     def _require_session(self) -> AsyncSession:
         if self._session is None:

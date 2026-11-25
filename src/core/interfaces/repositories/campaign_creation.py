@@ -10,6 +10,11 @@ from src.core.dto.campaign_creation import (
 
 class CampaignCreationRepository(ABC):
     @abstractmethod
+    async def lock(self, request_id: UUID) -> None:
+        """Заблокировать ключ запроса до commit/rollback, даже без записи попытки."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def get(self, request_id: UUID) -> CampaignCreationAttempt | None:
         raise NotImplementedError
 

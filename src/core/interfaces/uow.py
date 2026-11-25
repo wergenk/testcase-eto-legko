@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Self
-from uuid import UUID
 
 from .repositories import (
     StreamDraftRepository,
@@ -37,19 +36,9 @@ class UnitOfWork(ABC):
 
 
 class StreamUnitOfWork(UnitOfWork):
-    @abstractmethod
-    async def lock_creation(self, request_id: UUID) -> None:
-        """Сериализовать этап создания по ключу запроса до commit/rollback."""
-        raise NotImplementedError
-
     @property
     @abstractmethod
     def creations(self) -> CampaignCreationRepository:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def lock_campaign(self, keitaro_campaign_id: int) -> None:
-        """Сериализовать синхронизации кампании до commit/rollback транзакции."""
         raise NotImplementedError
 
     @property

@@ -28,7 +28,10 @@ from src.core.interfaces import KeitaroGateway, StreamUnitOfWork
 from src.core.services import CampaignSyncService, StreamDraftService
 from src.infrastructure.database import AsyncDatabaseSessionManager
 from src.infrastructure.database.models import StreamSnapshotORM
-from src.infrastructure.database.repositories import StreamDraftSQLAlchemyRepository
+from src.infrastructure.database.repositories import (
+    StreamDraftSQLAlchemyRepository,
+    StreamSQLAlchemyRepository,
+)
 from src.infrastructure.database.uow import StreamUnitOfWorkSQLAlchemy
 
 pytestmark = pytest.mark.asyncio
@@ -457,7 +460,7 @@ async def test_fetch_waits_for_push_and_imports_published_state(
         asyncio.Event(),
     )
     original_put = api.replace_stream_offers.side_effect
-    original_lock = StreamUnitOfWorkSQLAlchemy.lock_campaign
+    original_lock = StreamSQLAlchemyRepository.lock_campaign
 
     async def slow_put(
         stream_id: int, offers: Sequence[KeitaroStreamOfferInputDTO]
@@ -466,15 +469,15 @@ async def test_fetch_waits_for_push_and_imports_published_state(
         await release_put.wait()
         return await original_put(stream_id, offers)
 
-    async def lock(uow: StreamUnitOfWorkSQLAlchemy, campaign_id: int) -> None:
+    async def lock(repository: StreamSQLAlchemyRepository, campaign_id: int) -> None:
         if entered_put.is_set():
             fetch_lock.set()
-        await original_lock(uow, campaign_id)
+        await original_lock(repository, campaign_id)
 
     api.replace_stream_offers.side_effect = slow_put
     api.get_campaign_streams.reset_mock()
     service = CampaignSyncService(factory, api)
-    with patch.object(StreamUnitOfWorkSQLAlchemy, "lock_campaign", lock):
+    with patch.object(StreamSQLAlchemyRepository, "lock_campaign", lock):
         pushing = asyncio.create_task(
             service.push_stream(draft.id, expected_revision=2)
         )
