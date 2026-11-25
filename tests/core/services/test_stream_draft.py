@@ -46,6 +46,9 @@ class MemoryDraftRepository(StreamDraftRepository):
             return self.draft.model_copy(deep=True)
         return None
 
+    async def get_for_update(self, draft_id: int) -> StreamDraft | None:
+        return await self.get(draft_id)
+
     async def get_by_stream(self, stream_id: int) -> StreamDraft | None:
         if self.draft is not None and self.draft.stream_id == stream_id:
             return self.draft.model_copy(deep=True)

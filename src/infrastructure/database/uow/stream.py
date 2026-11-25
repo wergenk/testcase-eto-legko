@@ -1,6 +1,8 @@
 from types import TracebackType
 from typing import Self
+from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.interfaces.repositories import (
@@ -8,12 +10,18 @@ from src.core.interfaces.repositories import (
     StreamRepository,
     StreamSnapshotRepository,
 )
+from src.core.interfaces.repositories.campaign_creation import (
+    CampaignCreationRepository,
+)
 from src.core.interfaces.uow import StreamUnitOfWork
 from src.infrastructure.database import AsyncDatabaseSessionManager
 from src.infrastructure.database.repositories import (
     StreamDraftSQLAlchemyRepository,
     StreamSnapshotSQLAlchemyRepository,
     StreamSQLAlchemyRepository,
+)
+from src.infrastructure.database.repositories.campaign_creation import (
+    CampaignCreationSQLAlchemyRepository,
 )
 
 
@@ -24,6 +32,14 @@ class StreamUnitOfWorkSQLAlchemy(StreamUnitOfWork):
         self._streams: StreamRepository | None = None
         self._snapshots: StreamSnapshotRepository | None = None
         self._drafts: StreamDraftRepository | None = None
+        self._creations: CampaignCreationRepository | None = None
+
+    @property
+    def creations(self) -> CampaignCreationRepository:
+        self._require_session()
+        if self._creations is None:
+            raise RuntimeError("Репозиторий создания кампаний не инициализирован")
+        return self._creations
 
     @property
     def streams(self) -> StreamRepository:
@@ -55,6 +71,7 @@ class StreamUnitOfWorkSQLAlchemy(StreamUnitOfWork):
             self._streams = StreamSQLAlchemyRepository(session)
             self._snapshots = StreamSnapshotSQLAlchemyRepository(session)
             self._drafts = StreamDraftSQLAlchemyRepository(session)
+            self._creations = CampaignCreationSQLAlchemyRepository(session)
             self._session = session
         except BaseException:
             await session.close()
@@ -78,6 +95,7 @@ class StreamUnitOfWorkSQLAlchemy(StreamUnitOfWork):
                 self._streams = None
                 self._snapshots = None
                 self._drafts = None
+                self._creations = None
         return False
 
     async def commit(self) -> None:
@@ -85,6 +103,17 @@ class StreamUnitOfWorkSQLAlchemy(StreamUnitOfWork):
 
     async def rollback(self) -> None:
         await self._require_session().rollback()
+
+    async def lock_campaign(self, keitaro_campaign_id: int) -> None:
+        # Transaction advisory lock работает и до появления первой строки потока.
+        resource = f"adrobot:campaign:{keitaro_campaign_id}"
+        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
+        await self._require_session().execute(stmt)
+
+    async def lock_creation(self, request_id: UUID) -> None:
+        resource = f"adrobot:creation:{request_id}"
+        stmt = select(func.pg_advisory_xact_lock(func.hashtextextended(resource, 0)))
+        await self._require_session().execute(stmt)
 
     def _require_session(self) -> AsyncSession:
         if self._session is None:

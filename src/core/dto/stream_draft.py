@@ -29,3 +29,10 @@ class StreamDraft(CreateStreamDraftDTO):
     revision: int = Field(ge=1)
     created_at: datetime
     updated_at: datetime
+
+    @property
+    def is_dirty(self) -> bool:
+        """Порядок объектов в DTO не важен; position входит в состояние строки."""
+        current = {offer.keitaro_offer_id: offer for offer in self.offers}
+        baseline = {offer.keitaro_offer_id: offer for offer in self.base_editor_state}
+        return current != baseline

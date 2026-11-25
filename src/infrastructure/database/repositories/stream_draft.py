@@ -12,13 +12,17 @@ from .base import BaseRepository
 
 
 class StreamDraftSQLAlchemyRepository(BaseRepository, StreamDraftRepository):
-    async def _get_orm(self, condition: ColumnElement[bool]) -> StreamDraftORM | None:
+    async def _get_orm(
+        self, condition: ColumnElement[bool], *, for_update: bool = False
+    ) -> StreamDraftORM | None:
         stmt = (
             select(StreamDraftORM)
             .options(joinedload(StreamDraftORM.offers))
             .where(condition)
             .execution_options(populate_existing=True)
         )
+        if for_update:
+            stmt = stmt.with_for_update(of=StreamDraftORM)
         return (await self.session.execute(stmt)).unique().scalars().one_or_none()
 
     async def create(self, data: CreateStreamDraftDTO) -> StreamDraft:
@@ -37,6 +41,10 @@ class StreamDraftSQLAlchemyRepository(BaseRepository, StreamDraftRepository):
 
     async def get(self, draft_id: int) -> StreamDraft | None:
         draft_orm = await self._get_orm(StreamDraftORM.id == draft_id)
+        return self._validate(StreamDraft, draft_orm)
+
+    async def get_for_update(self, draft_id: int) -> StreamDraft | None:
+        draft_orm = await self._get_orm(StreamDraftORM.id == draft_id, for_update=True)
         return self._validate(StreamDraft, draft_orm)
 
     async def get_by_stream(self, stream_id: int) -> StreamDraft | None:

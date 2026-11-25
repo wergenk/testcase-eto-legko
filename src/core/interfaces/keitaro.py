@@ -2,8 +2,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from src.core.dto.keitaro import (
+    KeitaroCampaignDTO,
+    KeitaroCampaignInputDTO,
+    KeitaroCatalogItemDTO,
     KeitaroOfferDTO,
     KeitaroStreamDTO,
+    KeitaroStreamInputDTO,
     KeitaroStreamOfferInputDTO,
 )
 
@@ -16,6 +20,42 @@ class KeitaroGateway(ABC):
     отсутствие запрошенного объекта — в KeitaroNotFoundError.
     HTTP-типы и настройки клиента остаются в infrastructure.
     """
+
+    @abstractmethod
+    async def find_campaign_by_alias(self, alias: str) -> KeitaroCampaignDTO | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_campaign(self, campaign_id: int) -> KeitaroCampaignDTO:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_campaign(
+        self, data: KeitaroCampaignInputDTO
+    ) -> KeitaroCampaignDTO:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_campaign_state(
+        self, campaign_id: int, *, active: bool
+    ) -> KeitaroCampaignDTO:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_stream(self, data: KeitaroStreamInputDTO) -> KeitaroStreamDTO:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_domains(self) -> Sequence[KeitaroCatalogItemDTO]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_campaign_groups(self) -> Sequence[KeitaroCatalogItemDTO]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_traffic_sources(self) -> Sequence[KeitaroCatalogItemDTO]:
+        raise NotImplementedError
 
     @abstractmethod
     async def get_campaign_streams(

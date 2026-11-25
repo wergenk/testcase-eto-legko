@@ -22,6 +22,11 @@ class StreamDraftRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_for_update(self, draft_id: int) -> StreamDraft | None:
+        """Загрузить черновик, заблокировав его запись до commit/rollback."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_by_stream(self, stream_id: int) -> StreamDraft | None:
         """Загрузить рабочий черновик потока вместе со всеми его офферами."""
         raise NotImplementedError

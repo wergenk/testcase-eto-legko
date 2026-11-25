@@ -39,3 +39,45 @@ class KeitaroStreamOfferInputDTO(FrozenBaseDTO):
     offer_id: KeitaroID
     share: OfferShare
     state: Literal["active", "disabled"] = "active"
+
+
+class KeitaroCatalogItemDTO(FrozenBaseDTO):
+    id: KeitaroID
+
+
+class KeitaroCampaignDTO(FrozenBaseDTO):
+    id: KeitaroID
+    name: str
+    alias: str
+    domain_id: KeitaroID
+    group_id: KeitaroID
+    traffic_source_id: KeitaroID
+    state: str
+    type: str
+
+
+class KeitaroCampaignInputDTO(FrozenBaseDTO):
+    name: str
+    alias: str
+    domain_id: KeitaroID
+    group_id: KeitaroID
+    traffic_source_id: KeitaroID
+    state: Literal["active", "disabled"] = "disabled"
+    type: Literal["position"] = "position"
+
+
+class KeitaroStreamInputDTO(FrozenBaseDTO):
+    campaign_id: KeitaroID
+    name: str
+    type: Literal["regular", "default"]
+    stream_schema: Literal["redirect", "landings"] = Field(alias="schema")
+    position: int = Field(ge=1)
+    state: Literal["active"] = "active"
+    action_type: Literal["http"] = "http"
+    action_payload: str = ""
+    filters: tuple[dict[str, JsonValue], ...] = ()
+    filter_or: bool = False
+    collect_clicks: bool = True
+    offer_selection: Literal["before_click"] = "before_click"
+    offers: tuple[KeitaroStreamOfferInputDTO, ...] = ()
+    landings: tuple[dict[str, JsonValue], ...] = ()
