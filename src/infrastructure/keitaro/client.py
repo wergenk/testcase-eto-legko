@@ -11,6 +11,7 @@ from src.config import KeitaroSettings
 from src.core.dto.keitaro import (
     KeitaroCampaignDTO,
     KeitaroCampaignInputDTO,
+    KeitaroCampaignSummaryDTO,
     KeitaroCatalogItemDTO,
     KeitaroOfferDTO,
     KeitaroStreamDTO,
@@ -28,6 +29,7 @@ from src.core.interfaces import KeitaroGateway
 from .schemas import (
     CampaignIdentityResponse,
     CampaignResponse,
+    CampaignSummaryResponse,
     CatalogItemResponse,
     OfferResponse,
     StreamResponse,
@@ -68,6 +70,24 @@ class HttpKeitaroGateway(KeitaroGateway):
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+    async def list_campaigns(self) -> list[KeitaroCampaignSummaryDTO]:
+        campaigns = []
+        seen: set[int] = set()
+        offset = 0
+        while True:
+            payload = await self._request(
+                "GET", "campaigns", params={"offset": offset, "limit": 100}
+            )
+            page = self._validate(list[CampaignSummaryResponse], payload)
+            for row in page:
+                if row.id in seen:
+                    raise KeitaroError("Keitaro повторил страницу кампаний")
+                seen.add(row.id)
+                campaigns.append(row.model_dump())
+            if len(page) < 100:
+                return self._validate(list[KeitaroCampaignSummaryDTO], campaigns)
+            offset += len(page)
 
     async def find_campaign_by_alias(self, alias: str) -> KeitaroCampaignDTO | None:
         offset = 0

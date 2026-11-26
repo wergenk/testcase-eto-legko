@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.core.dto.keitaro import (
     KeitaroCampaignDTO,
+    KeitaroCampaignSummaryDTO,
     KeitaroCatalogItemDTO,
     KeitaroID,
     KeitaroOfferDTO,
@@ -10,6 +11,10 @@ from src.core.dto.keitaro import (
 
 
 class CampaignResponse(KeitaroCampaignDTO):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+
+class CampaignSummaryResponse(KeitaroCampaignSummaryDTO):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
 

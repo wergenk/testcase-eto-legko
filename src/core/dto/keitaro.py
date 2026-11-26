@@ -45,6 +45,13 @@ class KeitaroCatalogItemDTO(FrozenBaseDTO):
     id: KeitaroID
 
 
+class KeitaroCampaignSummaryDTO(FrozenBaseDTO):
+    id: KeitaroID
+    name: str
+    alias: str
+    state: str
+
+
 class KeitaroCampaignDTO(FrozenBaseDTO):
     id: KeitaroID
     name: str

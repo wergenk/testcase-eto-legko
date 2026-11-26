@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from src.core.dto.keitaro import (
     KeitaroCampaignDTO,
     KeitaroCampaignInputDTO,
+    KeitaroCampaignSummaryDTO,
     KeitaroCatalogItemDTO,
     KeitaroOfferDTO,
     KeitaroStreamDTO,
@@ -20,6 +21,11 @@ class KeitaroGateway(ABC):
     отсутствие запрошенного объекта — в KeitaroNotFoundError.
     HTTP-типы и настройки клиента остаются в infrastructure.
     """
+
+    @abstractmethod
+    async def list_campaigns(self) -> Sequence[KeitaroCampaignSummaryDTO]:
+        """Получить все страницы кампаний для выбора в редакторе."""
+        raise NotImplementedError
 
     @abstractmethod
     async def find_campaign_by_alias(self, alias: str) -> KeitaroCampaignDTO | None:

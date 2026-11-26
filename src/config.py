@@ -3,11 +3,16 @@ from functools import lru_cache
 from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.dto.campaign_creation import CampaignCreationDefaults
-
 
 class DatabaseSettings(BaseModel):
     url: str
+
+
+class CampaignCreationSettings(BaseModel):
+    # Значения .env приходят строками; строгие ID DTO создаются после разбора настроек.
+    domain_id: int = Field(gt=0)
+    group_id: int = Field(gt=0)
+    traffic_source_id: int = Field(gt=0)
 
 
 class KeitaroSettings(BaseModel):
@@ -36,7 +41,7 @@ class Settings(BaseSettings):
     db: DatabaseSettings
     # Миграции и локальный редактор могут работать без подключения к Keitaro.
     keitaro: KeitaroSettings | None = None
-    campaign_creation: CampaignCreationDefaults | None = None
+    campaign_creation: CampaignCreationSettings | None = None
 
 
 @lru_cache

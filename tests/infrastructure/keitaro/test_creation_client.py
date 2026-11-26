@@ -11,6 +11,50 @@ from src.infrastructure.keitaro import HttpKeitaroGateway
 pytestmark = pytest.mark.asyncio
 
 
+async def test_list_campaigns_reads_all_pages_and_accepts_unset_domain() -> None:
+    offsets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = int(request.url.params["offset"])
+        offsets.append(offset)
+        count = 100 if offset == 0 else 1
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "id": offset + index + 1,
+                    "name": "Test",
+                    "alias": str(offset + index),
+                    "state": "active",
+                    "domain_id": None,
+                }
+                for index in range(count)
+            ],
+        )
+
+    async with HttpKeitaroGateway(
+        settings(), transport=httpx.MockTransport(handler)
+    ) as gateway:
+        campaigns = await gateway.list_campaigns()
+    assert offsets == [0, 100]
+    assert len(campaigns) == 101
+    assert campaigns[-1].id == 101
+    assert "domain_id" not in campaigns[0].model_dump()
+
+
+async def test_list_campaigns_rejects_repeated_page() -> None:
+    page = [
+        {"id": index + 1, "name": "Test", "alias": str(index), "state": "active"}
+        for index in range(100)
+    ]
+    async with HttpKeitaroGateway(
+        settings(),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=page)),
+    ) as gateway:
+        with pytest.raises(KeitaroError, match="страницу"):
+            await gateway.list_campaigns()
+
+
 def settings() -> KeitaroSettings:
     return KeitaroSettings(
         base_url="https://keitaro.example/admin_api/v1", api_key="test"
