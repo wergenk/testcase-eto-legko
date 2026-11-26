@@ -20,7 +20,7 @@ StreamUowFactoryDepend = Annotated[StreamUowFactory, Depends(get_uow_factory)]
 async def get_stream_uow(
     factory: StreamUowFactoryDepend,
 ) -> AsyncIterator[StreamUnitOfWork]:
-    """Открыть транзакцию; commit явно выполняется до возврата ответа роутером."""
+    """Открыть UOW для чтения и закрыть транзакцию без commit."""
     async with factory() as uow:
         yield uow
 

@@ -28,13 +28,10 @@ async def add_offer(
     draft_id: PositiveID,
     data: AddOfferRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.add_offer(
+    return await service.add_offer(
         draft_id, data.offer_id, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.delete("/{draft_id}/offers/{offer_id}", response_model=StreamDraftResponse)
@@ -43,13 +40,10 @@ async def remove_offer(
     offer_id: PositiveID,
     data: RevisionRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.remove_offer(
+    return await service.remove_offer(
         draft_id, offer_id, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.post(
@@ -60,13 +54,10 @@ async def restore_offer(
     offer_id: PositiveID,
     data: RevisionRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.restore_offer(
+    return await service.restore_offer(
         draft_id, offer_id, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.put("/{draft_id}/offers/{offer_id}/pin", response_model=StreamDraftResponse)
@@ -75,13 +66,10 @@ async def pin_share(
     offer_id: PositiveID,
     data: PinShareRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.pin_share(
+    return await service.pin_share(
         draft_id, offer_id, data.share, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.delete("/{draft_id}/offers/{offer_id}/pin", response_model=StreamDraftResponse)
@@ -90,13 +78,10 @@ async def unpin_share(
     offer_id: PositiveID,
     data: RevisionRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.unpin_share(
+    return await service.unpin_share(
         draft_id, offer_id, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.post("/{draft_id}/cancel", response_model=StreamDraftResponse)
@@ -104,13 +89,10 @@ async def cancel_changes(
     draft_id: PositiveID,
     data: RevisionRequest,
     service: StreamDraftServiceDepend,
-    uow: StreamUowDepend,
 ) -> StreamDraft:
-    draft = await service.cancel_changes(
+    return await service.cancel_changes(
         draft_id, expected_revision=data.expected_revision
     )
-    await uow.commit()
-    return draft
 
 
 @router.post("/{draft_id}/push", response_model=StreamDraftResponse)

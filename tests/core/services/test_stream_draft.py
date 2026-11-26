@@ -12,7 +12,7 @@ from src.core.exceptions import (
     StreamDraftConflictError,
     StreamDraftNotFoundError,
 )
-from src.core.interfaces import KeitaroGateway
+from src.core.interfaces import KeitaroGateway, StreamUnitOfWork
 from src.core.interfaces.repositories import StreamDraftRepository
 from src.core.services import StreamDraftService
 
@@ -70,7 +70,15 @@ class MemoryDraftRepository(StreamDraftRepository):
 
 
 @pytest.fixture
-def editor() -> tuple[StreamDraftService, MemoryDraftRepository, Mock]:
+def uow() -> Mock:
+    transaction = create_autospec(StreamUnitOfWork, instance=True)
+    transaction.__aenter__.return_value = transaction
+    transaction.__aexit__.return_value = False
+    return transaction
+
+
+@pytest.fixture
+def editor(uow: Mock) -> tuple[StreamDraftService, MemoryDraftRepository, Mock]:
     now = datetime.now(UTC)
     baseline = (offer(1, 25, pinned=True), offer(2, 75), offer(3, 0, active=False))
     draft = StreamDraft(
@@ -84,12 +92,13 @@ def editor() -> tuple[StreamDraftService, MemoryDraftRepository, Mock]:
         updated_at=now,
     )
     repository = MemoryDraftRepository(draft)
+    uow.drafts = repository
     gateway = create_autospec(KeitaroGateway, instance=True, spec_set=True)
     gateway.get_offer.side_effect = lambda offer_id: KeitaroOfferDTO(
         id=offer_id, name=f"Offer {offer_id}", state="active"
     )
     return (
-        StreamDraftService(repository, gateway),
+        StreamDraftService(Mock(return_value=uow), gateway),
         repository,
         gateway,
     )
@@ -179,6 +188,7 @@ async def test_cancel_drops_new_rows_and_restores_archive_and_exact_shares(
 
 async def test_noops_do_not_bump_revision_or_call_keitaro(
     editor: tuple[StreamDraftService, MemoryDraftRepository, Mock],
+    uow: Mock,
 ) -> None:
     service, repository, gateway = editor
     assert (await service.remove_offer(1, 3, expected_revision=1)).revision == 1
@@ -187,6 +197,7 @@ async def test_noops_do_not_bump_revision_or_call_keitaro(
     assert (await service.cancel_changes(1, expected_revision=1)).revision == 1
     assert repository.updates == 0
     gateway.get_offer.assert_not_called()
+    uow.commit.assert_not_awaited()
 
 
 @pytest.mark.parametrize("offer_id", [1, 3])
@@ -214,16 +225,19 @@ async def test_missing_draft_and_offer(
 
 async def test_stale_client_is_rejected_before_remote_request(
     editor: tuple[StreamDraftService, MemoryDraftRepository, Mock],
+    uow: Mock,
 ) -> None:
     service, repository, gateway = editor
     with pytest.raises(StreamDraftConflictError):
         await service.add_offer(1, 4, expected_revision=99)
     assert repository.updates == 0
     gateway.get_offer.assert_not_called()
+    uow.commit.assert_not_awaited()
 
 
 async def test_race_during_save_does_not_overwrite_draft(
     editor: tuple[StreamDraftService, MemoryDraftRepository, Mock],
+    uow: Mock,
 ) -> None:
     service, repository, _ = editor
     original = await repository.get(1)
@@ -231,6 +245,7 @@ async def test_race_during_save_does_not_overwrite_draft(
     with pytest.raises(StreamDraftConflictError):
         await service.remove_offer(1, 1, expected_revision=1)
     assert await repository.get(1) == original
+    uow.commit.assert_not_awaited()
 
 
 @pytest.mark.parametrize("share", [-1, 101, True, 25.5, "25"])
@@ -291,3 +306,58 @@ async def test_removing_last_active_offer_is_allowed(
     await service.remove_offer(1, 1, expected_revision=1)
     result = await service.remove_offer(1, 2, expected_revision=2)
     assert all(not row.is_active and row.share == 0 for row in result.offers)
+
+
+@pytest.mark.parametrize(
+    "method,args",
+    [
+        ("add_offer", (1, 4)),
+        ("remove_offer", (1, 1)),
+        ("restore_offer", (1, 3)),
+        ("pin_share", (1, 1, 40)),
+        ("unpin_share", (1, 1)),
+        ("cancel_changes", (1,)),
+    ],
+)
+async def test_mutation_owns_transaction_and_commits_once(
+    editor: tuple[StreamDraftService, MemoryDraftRepository, Mock],
+    uow: Mock,
+    method: str,
+    args: tuple[int, ...],
+) -> None:
+    service, repository, _ = editor
+    if method == "cancel_changes":
+        repository.draft = repository.draft.model_copy(update={"offers": ()})
+
+    result = await getattr(service, method)(*args, expected_revision=1)
+
+    assert result.revision == 2
+    uow.__aenter__.assert_awaited_once()
+    uow.commit.assert_awaited_once()
+    uow.__aexit__.assert_awaited_once_with(None, None, None)
+
+
+async def test_commit_failure_is_propagated_and_uow_is_closed(
+    editor: tuple[StreamDraftService, MemoryDraftRepository, Mock], uow: Mock
+) -> None:
+    service, _, _ = editor
+    uow.commit.side_effect = RuntimeError("Commit failed")
+
+    with pytest.raises(RuntimeError, match="Commit failed"):
+        await service.remove_offer(1, 1, expected_revision=1)
+
+    uow.commit.assert_awaited_once()
+    assert uow.__aexit__.await_args.args[0] is RuntimeError
+
+
+async def test_upstream_failure_exits_uow_without_commit(
+    editor: tuple[StreamDraftService, MemoryDraftRepository, Mock], uow: Mock
+) -> None:
+    service, _, gateway = editor
+    gateway.get_offer.side_effect = KeitaroNotFoundError("Missing offer")
+
+    with pytest.raises(KeitaroNotFoundError):
+        await service.add_offer(1, 4, expected_revision=1)
+
+    uow.commit.assert_not_awaited()
+    assert uow.__aexit__.await_args.args[0] is KeitaroNotFoundError

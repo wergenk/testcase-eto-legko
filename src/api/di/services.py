@@ -9,7 +9,7 @@ from src.core.services import (
     StreamDraftService,
 )
 
-from .database import StreamUowDepend, StreamUowFactoryDepend
+from .database import StreamUowFactoryDepend
 from .keitaro import KeitaroGatewayDepend, SettingsDepend
 
 
@@ -34,9 +34,9 @@ def get_campaign_creation_service(
 
 
 def get_stream_draft_service(
-    uow: StreamUowDepend, keitaro: KeitaroGatewayDepend
+    factory: StreamUowFactoryDepend, keitaro: KeitaroGatewayDepend
 ) -> StreamDraftService:
-    return StreamDraftService(uow.drafts, keitaro)
+    return StreamDraftService(factory, keitaro)
 
 
 CampaignSyncServiceDepend = Annotated[
